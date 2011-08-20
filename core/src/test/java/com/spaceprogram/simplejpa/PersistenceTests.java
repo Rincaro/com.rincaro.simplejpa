@@ -183,13 +183,7 @@ public class PersistenceTests extends BaseTestClass {
     int counter = 0;
 
     private MyTestObject makeTestObjects(EntityManager em) {
-
         MyTestObject object = new MyTestObject();
-        object.setName("Some Random Object");
-        object.setAge(100);
-        em.persist(object); // saving here first to get an ID for bi-directional stuff (temp solution)
-
-        object = new MyTestObject();
         object.setName("Scooby doo");
         object.setAge(12);
         object.setIncome(50507d);
@@ -781,28 +775,6 @@ public class PersistenceTests extends BaseTestClass {
         MyTestObject o1 = (MyTestObject)q.getSingleResult();
         Assert.assertEquals(name, o1.getName());
         Assert.assertNotNull(o1.getId());
-        em.close();
-    }
-
-    @Test(expected = PersistenceException.class)
-    public void testEndsWithQuery() {
-        EntityManager em = factory.createEntityManager();
-
-        MyTestObject3 object = new MyTestObject3();
-        object.setSomeField3("fred and barney");
-        em.persist(object);
-        em.close();
-
-        em = factory.createEntityManager();
-        Query query = em.createQuery("select o from MyTestObject3 o where o.someField3 like :x");
-        query.setParameter("x", "%fred and"); // bad
-        System.out.println("query=" + query);
-        List<MyTestObject3> obs = query.getResultList();
-        System.out.println("shouldn't make it here");
-        for (MyTestObject3 ob : obs) {
-            System.out.println(ob);
-        }
-        Assert.assertEquals(1, obs.size());
         em.close();
     }
 
