@@ -359,7 +359,7 @@ public class QueryImpl extends AbstractQuery {
             JPAQuery queryClone = (JPAQuery) getQ().clone();
             queryClone.setResult("count(*)");
             QueryImpl query2 = new QueryImpl(em, queryClone);
-            query2.setParameters(getParameters());
+            query2.setParameters(getParameters(), getPositionalParameters());
             query2.setForeignIds(getForeignIds());
             List results = query2.getResultList();
             int resultCount = ((Long) results.get(0)).intValue();

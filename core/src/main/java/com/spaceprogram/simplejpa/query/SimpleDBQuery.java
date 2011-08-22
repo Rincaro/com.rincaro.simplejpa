@@ -72,6 +72,10 @@ public class SimpleDBQuery extends AbstractQuery {
             String stringVal = convertToSimpleDBValue(entry.getValue(), entry.getValue().getClass());
             originalQuery = originalQuery.replaceAll(":"+entry.getKey()+"([ )])", stringVal+"$1");
         }
+        for (Map.Entry<Integer, Object> entry : getPositionalParameters().entrySet()) {
+            String stringVal = convertToSimpleDBValue(entry.getValue(), entry.getValue().getClass());
+            originalQuery = originalQuery.replaceAll("?"+entry.getKey()+"([ )])", stringVal+"$1");
+        }
         return originalQuery.trim();
     }
 }

@@ -130,6 +130,24 @@ public class SimpleDBQueryTests extends UnitilsJUnit4 {
     }
 
     @Test
+    public void testPositionalParameterReplacement() {
+        Date now = new Date();
+        mockEM.returns(mockEMFactory.getMock()).getFactory();
+        mockEM.returns(MyTestObject.class).ensureClassIsEntity("MyTestObject");
+        mockEMFactory.returns("simplddbquerytests").getPersistenceUnitName();
+
+        SimpleDBQuery q = new SimpleDBQuery(mockEM.getMock(), "select * from MyTestObject where col1 = ?1 and col10 > ?2");
+        q.setParameter(1, now);
+        q.setParameter(2, 10);
+        AmazonQueryString aq = q.createAmazonQuery(false);
+        assertFalse(aq.isCount());
+        String expected = new StringBuilder().append("select * from `simplddbquerytests-MyTestObject` where col1 = '")
+                .append(AmazonSimpleDBUtil.encodeDate(now))
+                .append("' and col10 > '09223372036854775818'").toString();
+        assertEquals(expected, aq.getValue());
+    }
+
+    @Test
     public void testConvertToCountQuery() {
         AmazonQueryString aq = new AmazonQueryString("select * from DomainClass", false);
         assertEquals("select count(*) from DomainClass", SimpleDBQuery.convertToCountQuery(aq));
