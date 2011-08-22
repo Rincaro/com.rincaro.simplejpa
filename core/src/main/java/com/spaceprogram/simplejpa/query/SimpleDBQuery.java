@@ -70,7 +70,7 @@ public class SimpleDBQuery extends AbstractQuery {
         originalQuery = originalQuery+" "; // pad a space on the end for easier matching
         for (Map.Entry<String, Object> entry : getParameters().entrySet()) {
             String stringVal = convertToSimpleDBValue(entry.getValue(), entry.getValue().getClass());
-            originalQuery = originalQuery.replaceAll(":"+entry.getKey()+" ", "'"+stringVal+"' ");
+            originalQuery = originalQuery.replaceAll(":"+entry.getKey()+"([ )])", stringVal+"$1");
         }
         return originalQuery.trim();
     }

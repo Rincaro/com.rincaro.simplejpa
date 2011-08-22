@@ -11,6 +11,7 @@ import com.spaceprogram.simplejpa.LazyList;
 import com.spaceprogram.simplejpa.PersistentProperty;
 import com.spaceprogram.simplejpa.util.AmazonSimpleDBUtil;
 import com.spaceprogram.simplejpa.util.EscapeUtils;
+import org.apache.commons.collections.iterators.ArrayIterator;
 import org.apache.commons.lang.NotImplementedException;
 
 import javax.persistence.*;
@@ -56,7 +57,7 @@ public abstract class AbstractQuery implements SimpleQuery {
             Class retType = property.getPropertyClass();
             param = convertToSimpleDBValue(paramOb, retType);
         }
-        return "'" + param + "'";
+        return param;
     }
 
     protected String convertToSimpleDBValue(Object paramOb, Class retType) {
@@ -84,11 +85,29 @@ public abstract class AbstractQuery implements SimpleQuery {
         } else if (Date.class.isAssignableFrom(retType)) {
             Date x = (Date) paramOb;
             param = AmazonSimpleDBUtil.encodeDate(x);
+        } else if (Collection.class.isAssignableFrom(retType)) { // will only apply to native queries as non-native will pass in the generic collection type
+            StringBuilder b = new StringBuilder();
+            Iterator it = ((Collection)paramOb).iterator();
+            while(it.hasNext()) {
+                Object o = it.next();
+                b.append(convertToSimpleDBValue(o, o.getClass()));
+                if(it.hasNext()) b.append(", ");
+            }
+            return b.toString(); // return from here as the collection will already be quoted by the nested calls
+        } else if (retType.isArray()) { // will only apply to native queries as non-native will pass in the generic collection type
+            StringBuilder b = new StringBuilder();
+            Iterator it = new ArrayIterator(paramOb);
+            while(it.hasNext()) {
+                Object o = it.next();
+                b.append(convertToSimpleDBValue(o, o.getClass()));
+                if(it.hasNext()) b.append(", ");
+            }
+            return b.toString(); // return from here as the array will already be quoted by the nested calls
         } else { // string
             param = EscapeUtils.escapeQueryParam(paramOb.toString());
             //amazon now supports like queries starting with %
         }
-        return param;
+        return "'"+param+"'";
     }
 
     protected String paramName(String param) {
