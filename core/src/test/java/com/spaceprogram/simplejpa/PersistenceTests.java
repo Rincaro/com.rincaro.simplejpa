@@ -183,13 +183,7 @@ public class PersistenceTests extends BaseTestClass {
     int counter = 0;
 
     private MyTestObject makeTestObjects(EntityManager em) {
-
         MyTestObject object = new MyTestObject();
-        object.setName("Some Random Object");
-        object.setAge(100);
-        em.persist(object); // saving here first to get an ID for bi-directional stuff (temp solution)
-
-        object = new MyTestObject();
         object.setName("Scooby doo");
         object.setAge(12);
         object.setIncome(50507d);
@@ -230,31 +224,11 @@ public class PersistenceTests extends BaseTestClass {
         query = em.createQuery("select o from " + MyTestObject.class.getName() + " o");
         obs = query.getResultList();
         Assert.assertEquals(2, obs.size());
-        for (MyTestObject ob : obs) {
-            System.out.println(ob);
-            if (ob.getMyList() != null) {
-                System.out.println("list not null: " + ob.getMyList().getClass());
-                List<MyTestObject2> ob2s = ob.getMyList();
-                for (MyTestObject2 ob2 : ob2s) {
-                    System.out.println("ob2=" + ob2);
-                }
-            }
-        }
 
         query = em.createQuery("select o from " + MyTestObject.class.getName() + " o where 1=1 and o.age = :age");
         query.setParameter("age", 12);
         obs = query.getResultList();
         Assert.assertEquals(1, obs.size());
-        for (MyTestObject ob : obs) {
-            System.out.println(ob);
-            if (ob.getMyList() != null) {
-                System.out.println("list not null: " + ob.getMyList().getClass());
-                List<MyTestObject2> ob2s = ob.getMyList();
-                for (MyTestObject2 ob2 : ob2s) {
-                    System.out.println("ob2=" + ob2);
-                }
-            }
-        }
         Assert.assertEquals(originalObject.getId(), obs.get(0).getId());
         Assert.assertEquals(originalObject.getName(), obs.get(0).getName());
         Assert.assertEquals(originalObject.getIncome(), obs.get(0).getIncome());
@@ -264,7 +238,6 @@ public class PersistenceTests extends BaseTestClass {
         Assert.assertEquals(originalObject.getSomeBigDecimal(), obs.get(0).getSomeBigDecimal());
         Assert.assertEquals(originalObject.getBigString(), obs.get(0).getBigString());
         Assert.assertEquals(originalObject.getAge(), obs.get(0).getAge());
-        System.out.println("Getting my list.size....");
         Assert.assertEquals(1, obs.get(0).getMyList().size());
         Assert.assertEquals(originalObject.getMyList().get(0).getName(), obs.get(0).getMyList().get(0).getName());
 
@@ -274,20 +247,17 @@ public class PersistenceTests extends BaseTestClass {
         query.setParameter("age", 12);
         obs = query.getResultList();
         Assert.assertEquals(1, obs.size());
-        for (MyTestObject ob : obs) {
-            System.out.println(ob);
-            if (ob.getMyList() != null) {
-                System.out.println("list not null: " + ob.getMyList().getClass());
-                List<MyTestObject2> ob2s = ob.getMyList();
-                for (MyTestObject2 ob2 : ob2s) {
-                    System.out.println("ob2=" + ob2);
-                }
-            }
-        }
         Assert.assertEquals(originalObject.getId(), obs.get(0).getId());
         Assert.assertEquals(originalObject.getIncome(), obs.get(0).getIncome());
         Assert.assertEquals(obs.get(0).getMyList().size(), 1);
         Assert.assertEquals(originalObject.getMyList().get(0).getName(), obs.get(0).getMyList().get(0).getName());
+        // same query, positional
+        query = em.createQuery("select o from MyTestObject o where o.income = ?1 and o.age = ?2");
+        query.setParameter(1, 50507.0);
+        query.setParameter(2, 12);
+        List<MyTestObject> obs2 = query.getResultList();
+        Assert.assertEquals(1, obs2.size());
+        Assert.assertEquals(obs.get(0).getId(), obs2.get(0).getId());
 
         // no matches
         query = em.createQuery("select o from MyTestObject o where o.income = :income and o.age = :age");
@@ -781,28 +751,6 @@ public class PersistenceTests extends BaseTestClass {
         MyTestObject o1 = (MyTestObject)q.getSingleResult();
         Assert.assertEquals(name, o1.getName());
         Assert.assertNotNull(o1.getId());
-        em.close();
-    }
-
-    @Test(expected = PersistenceException.class)
-    public void testEndsWithQuery() {
-        EntityManager em = factory.createEntityManager();
-
-        MyTestObject3 object = new MyTestObject3();
-        object.setSomeField3("fred and barney");
-        em.persist(object);
-        em.close();
-
-        em = factory.createEntityManager();
-        Query query = em.createQuery("select o from MyTestObject3 o where o.someField3 like :x");
-        query.setParameter("x", "%fred and"); // bad
-        System.out.println("query=" + query);
-        List<MyTestObject3> obs = query.getResultList();
-        System.out.println("shouldn't make it here");
-        for (MyTestObject3 ob : obs) {
-            System.out.println(ob);
-        }
-        Assert.assertEquals(1, obs.size());
         em.close();
     }
 

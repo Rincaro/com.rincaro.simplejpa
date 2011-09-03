@@ -349,13 +349,16 @@ public class QueryImpl extends AbstractQuery {
             if (logger.isLoggable(Level.FINER)) {
                 logger.finer("Getting size.");
             }
+
             JPAQuery queryClone = (JPAQuery) this.getQ().clone();
             queryClone.setResult("count(*)");
             QueryImpl query2 = new QueryImpl(this.em, queryClone);
-            query2.setParameters(this.getParameters());
+            query2.setParameters(this.getParameters(), this.getPositionalParameters());
             query2.setForeignIds(this.getForeignIds());
+
             List results = query2.getResultList();
             int resultCount = ((Long) results.get(0)).intValue();
+
             if (logger.isLoggable(Level.FINER)) {
                 logger.finer("Got:" + resultCount);
             }
@@ -364,6 +367,7 @@ public class QueryImpl extends AbstractQuery {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.finer("Too much, adjusting to maxResults: " + this.maxResults);
                 }
+
                 return this.maxResults;
             } else {
                 return resultCount;
