@@ -1,13 +1,7 @@
 package com.spaceprogram.simplejpa.query;
 
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -15,24 +9,15 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.persistence.FlushModeType;
-import javax.persistence.ManyToOne;
-import javax.persistence.NoResultException;
-import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceException;
 import javax.persistence.Query;
-import javax.persistence.TemporalType;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.simpledb.model.Attribute;
-import com.amazonaws.services.simpledb.model.Item;
-import com.amazonaws.services.simpledb.model.NoSuchDomainException;
-import com.amazonaws.services.simpledb.model.SelectResult;
-import com.spaceprogram.simplejpa.*;
-import com.spaceprogram.simplejpa.util.AmazonSimpleDBUtil;
-import com.spaceprogram.simplejpa.util.EscapeUtils;
-
-import org.apache.commons.lang.NotImplementedException;
+import com.spaceprogram.simplejpa.AnnotationInfo;
+import com.spaceprogram.simplejpa.EntityManagerFactoryImpl;
+import com.spaceprogram.simplejpa.EntityManagerSimpleJPA;
+import com.spaceprogram.simplejpa.NamingHelper;
+import com.spaceprogram.simplejpa.PersistentProperty;
 
 /**
  * Need to support the following: <p/> <p/> - Navigation operator (.) DONE - Arithmetic operators: +, - unary *, / multiplication and division +, - addition and subtraction -
@@ -78,7 +63,7 @@ public class QueryImpl extends AbstractQuery {
         super(em);
         this.q = q;
         this.qString = q.toString();
-        init(em);
+        this.init(em);
     }
 
     public QueryImpl(EntityManagerSimpleJPA em, String qString) {
@@ -86,19 +71,19 @@ public class QueryImpl extends AbstractQuery {
         this.qString = qString;
         logger.fine("query=" + qString);
         this.q = new JPAQuery();
-        JPAQueryParser parser = new JPAQueryParser(q, qString);
+        JPAQueryParser parser = new JPAQueryParser(this.q, qString);
         parser.parse();
-        init(em);
+        this.init(em);
     }
 
     private Boolean appendCondition(Class tClass, StringBuilder sb, String field, String comparator, String param) {
         comparator = comparator.toLowerCase();
-        AnnotationInfo ai = em.getAnnotationManager().getAnnotationInfo(tClass);
+        AnnotationInfo ai = this.em.getAnnotationManager().getAnnotationInfo(tClass);
 
         String fieldSplit[] = field.split("\\.");
         if (fieldSplit.length == 1) {
             field = fieldSplit[0];
-// System.out.println("split: " + field + " param=" + param);
+            // System.out.println("split: " + field + " param=" + param);
             if (field.equals(param)) {
                 return false;
             }
@@ -110,34 +95,34 @@ public class QueryImpl extends AbstractQuery {
             // if filtering by id, then don't need to query for second object, just add a filter on the id field
             String refObjectField = fieldSplit[1];
             field = fieldSplit[2];
-// System.out.println("field=" + field);
+            // System.out.println("field=" + field);
             Class refType = ai.getPersistentProperty(refObjectField).getPropertyClass();
-            AnnotationInfo refAi = em.getAnnotationManager().getAnnotationInfo(refType);
+            AnnotationInfo refAi = this.em.getAnnotationManager().getAnnotationInfo(refType);
             PersistentProperty getterForField = refAi.getPersistentProperty(field);
-// System.out.println("getter=" + getterForField);
-            String paramValue = getParamValueAsStringForAmazonQuery(param, getterForField);
+            // System.out.println("getter=" + getterForField);
+            String paramValue = this.getParamValueAsStringForAmazonQuery(param, getterForField);
             logger.finest("paramValue=" + paramValue);
             String idFieldName = refAi.getIdMethod().getFieldName();
             if (idFieldName.equals(field)) {
                 logger.finer("Querying using id field, no second query required.");
-                appendFilter(sb, NamingHelper.foreignKey(refObjectField), comparator, paramValue);
+                this.appendFilter(sb, NamingHelper.foreignKey(refObjectField), comparator, paramValue);
             } else {
                 // no id method, so query for other object(s) first, then apply the returned value to the original query.
                 // todo: this needs some work (multiple ref objects? multiple params on same ref object?)
-                List<String> ids = foreignIds.get(field);
-// System.out.println("got foreign ids=" + ids);
+                List<String> ids = this.foreignIds.get(field);
+                // System.out.println("got foreign ids=" + ids);
                 if (ids == null) {
-                    Query sub = em.createQuery("select o from " + refType.getName() + " o where o." + field + " " + comparator + " :paramValue");
-                    sub.setParameter("paramValue", parameters.get(paramName(param)));
+                    Query sub = this.em.createQuery("select o from " + refType.getName() + " o where o." + field + " " + comparator + " :paramValue");
+                    sub.setParameter("paramValue", this.parameters.get(this.paramName(param)));
                     List subResults = sub.getResultList();
                     ids = new ArrayList<String>();
                     for (Object subResult : subResults) {
-                        ids.add(em.getId(subResult));
+                        ids.add(this.em.getId(subResult));
                     }
-                    foreignIds.put(field, ids); // Store the ids for next use, really reduces queries when using this repetitively
+                    this.foreignIds.put(field, ids); // Store the ids for next use, really reduces queries when using this repetitively
                 }
                 if (ids.size() > 0) {
-                    appendIn(sb, NamingHelper.foreignKey(refObjectField), ids);
+                    this.appendIn(sb, NamingHelper.foreignKey(refObjectField), ids);
                 } else {
                     // no matches so should return nothing right? only if an AND query I guess
                     return null;
@@ -148,7 +133,7 @@ public class QueryImpl extends AbstractQuery {
             throw new PersistenceException("Invalid field used in query: " + field);
         }
         logger.finest("field=" + field);
-// System.out.println("field=" + field + " paramValue=" + param);
+        // System.out.println("field=" + field + " paramValue=" + param);
         PersistentProperty getterForField = ai.getPersistentProperty(field);
         if (getterForField == null) {
             throw new PersistenceException("No getter for field: " + field);
@@ -160,26 +145,31 @@ public class QueryImpl extends AbstractQuery {
         if (comparator.equals("is")) {
             if (param.equalsIgnoreCase("null")) {
                 sb.append(columnName).append(" is null");
-// appendFilter(sb, true, columnName, "starts-with", "");
+                // appendFilter(sb, true, columnName, "starts-with", "");
             } else if (param.equalsIgnoreCase("not null")) {
                 sb.append(columnName).append(" is not null");
-// appendFilter(sb, false, columnName, "starts-with", "");
+                // appendFilter(sb, false, columnName, "starts-with", "");
             } else {
                 throw new PersistenceException("Must use only 'is null' or 'is not null' with where condition containing 'is'");
             }
         } else if (comparator.equals("like")) {
             comparator = "like";
-            String paramValue = getParamValueAsStringForAmazonQuery(param, getterForField);
-// System.out.println("param=" + paramValue + "___");
-// paramValue = paramValue.endsWith("%") ? paramValue.substring(0, paramValue.length() - 1) : paramValue;
-// System.out.println("param=" + paramValue + "___");
-// param = param.startsWith("%") ? param.substring(1) : param;
-            appendFilter(sb, columnName, comparator, paramValue);
+            String paramValue = this.getParamValueAsStringForAmazonQuery(param, getterForField);
+            // System.out.println("param=" + paramValue + "___");
+            // paramValue = paramValue.endsWith("%") ? paramValue.substring(0, paramValue.length() - 1) : paramValue;
+            // System.out.println("param=" + paramValue + "___");
+            // param = param.startsWith("%") ? param.substring(1) : param;
+            this.appendFilter(sb, columnName, comparator, paramValue);
         } else {
-            String paramValue = getParamValueAsStringForAmazonQuery(param, getterForField);
+            // Handle the translation of NOT EQUALS
+            if ("<>".equals(comparator)) {
+                comparator = "!=";
+            }
+
+            String paramValue = this.getParamValueAsStringForAmazonQuery(param, getterForField);
             logger.finer("paramValue=" + paramValue);
             logger.finer("comp=[" + comparator + "]");
-            appendFilter(sb, columnName, comparator, paramValue);
+            this.appendFilter(sb, columnName, comparator, paramValue);
         }
         return true;
     }
@@ -209,7 +199,7 @@ public class QueryImpl extends AbstractQuery {
     }
 
     private void appendFilter(StringBuilder sb, String field, String comparator, String param) {
-        appendFilter(sb, false, field, comparator, param, false);
+        this.appendFilter(sb, false, field, comparator, param, false);
     }
 
     /*
@@ -233,8 +223,8 @@ public class QueryImpl extends AbstractQuery {
         sb.append(" ");
         sb.append("IN");
         sb.append(" (");
-        for(int i = 0; i < params.size(); i++){
-            if(i != 0){
+        for (int i = 0; i < params.size(); i++) {
+            if (i != 0) {
                 sb.append(",");
             }
             sb.append("'").append(params.get(i)).append("'");
@@ -242,26 +232,27 @@ public class QueryImpl extends AbstractQuery {
         sb.append(")");
     }
 
+    @Override
     public AmazonQueryString createAmazonQuery(boolean appendLimit) throws NoResultsException, AmazonClientException {
-        String select = q.getResult();
+        String select = this.q.getResult();
         boolean count = false;
         if (select != null && select.contains("count")) {
-// System.out.println("HAS COUNT: " + select);
+            // System.out.println("HAS COUNT: " + select);
             count = true;
         }
-        AnnotationInfo ai = em.getAnnotationManager().getAnnotationInfo(tClass);
+        AnnotationInfo ai = this.em.getAnnotationManager().getAnnotationInfo(this.tClass);
 
         // Make sure querying the root Entity class
-        String domainName = em.getDomainName(ai.getRootClass());
+        String domainName = this.em.getDomainName(ai.getRootClass());
         if (domainName == null) {
             return null;
-// throw new NoResultsException();
+            // throw new NoResultsException();
         }
         StringBuilder amazonQuery;
-        if (q.getFilter() != null) {
-            amazonQuery = toAmazonQuery(tClass, q);
+        if (this.q.getFilter() != null) {
+            amazonQuery = this.toAmazonQuery(this.tClass, this.q);
             if (amazonQuery == null) {
-// throw new NoResultsException();
+                // throw new NoResultsException();
                 return null;
             }
         } else {
@@ -273,13 +264,13 @@ public class QueryImpl extends AbstractQuery {
             } else {
                 amazonQuery.append(" and ");
             }
-            appendFilter(amazonQuery, EntityManagerFactoryImpl.DTYPE, "=", "'" + ai.getDiscriminatorValue() + "'");
+            this.appendFilter(amazonQuery, EntityManagerFactoryImpl.DTYPE, "=", "'" + ai.getDiscriminatorValue() + "'");
         }
 
         // now for sorting
-        String orderBy = q.getOrdering();
+        String orderBy = this.q.getOrdering();
         if (orderBy != null && orderBy.length() > 0) {
-// amazonQuery.append(" sort ");
+            // amazonQuery.append(" sort ");
             amazonQuery.append(" order by ");
             String orderByOrder = "asc";
             String orderBySplit[] = orderBy.split(" ");
@@ -296,9 +287,9 @@ public class QueryImpl extends AbstractQuery {
             } else if (fieldSplit.length == 2) {
                 orderByAttribute = fieldSplit[1];
             }
-// amazonQuery.append("'");
+            // amazonQuery.append("'");
             amazonQuery.append(orderByAttribute);
-// amazonQuery.append("'");
+            // amazonQuery.append("'");
             amazonQuery.append(" ").append(orderByOrder);
         }
         StringBuilder fullQuery = new StringBuilder();
@@ -311,65 +302,69 @@ public class QueryImpl extends AbstractQuery {
         }
         String logString = "amazonQuery: Domain=" + domainName + ", query=" + fullQuery;
         logger.fine(logString);
-        if (em.getFactory().isPrintQueries()) {
+        if (this.em.getFactory().isPrintQueries()) {
             System.out.println(logString);
         }
 
-        if (!count && appendLimit && maxResults >= 0) {
-            fullQuery.append(" limit ").append(Math.min(MAX_RESULTS_PER_REQUEST, maxResults));
+        if (!count && appendLimit && this.maxResults >= 0) {
+            fullQuery.append(" limit ").append(Math.min(MAX_RESULTS_PER_REQUEST, this.maxResults));
         }
         return new AmazonQueryString(fullQuery.toString(), count);
     }
 
     public Map<String, List<String>> getForeignIds() {
-        return foreignIds;
+        return this.foreignIds;
     }
 
     public JPAQuery getQ() {
-        return q;
+        return this.q;
     }
 
     public String getQString() {
-        return qString;
+        return this.qString;
     }
 
     private void init(EntityManagerSimpleJPA em) {
 
-        String from = q.getFrom();
+        String from = this.q.getFrom();
         logger.finer("from=" + from);
-        logger.finer("where=" + q.getFilter());
-        if (q.getOrdering() != null && q.getFilter() == null) {
-            throw new PersistenceException("Attribute in ORDER BY [" + q.getOrdering() + "] must be included in a WHERE filter.");
+        logger.finer("where=" + this.q.getFilter());
+        if (this.q.getOrdering() != null && this.q.getFilter() == null) {
+            throw new PersistenceException("Attribute in ORDER BY [" + this.q.getOrdering() + "] must be included in a WHERE filter.");
         }
 
-        String split[] = q.getFrom().split(" ");
+        String split[] = this.q.getFrom().split(" ");
         String obClass = split[0];
-        tClass = em.ensureClassIsEntity(obClass);
-        consistentRead = em.isConsistentRead();
+        this.tClass = em.ensureClassIsEntity(obClass);
+        this.consistentRead = em.isConsistentRead();
     }
 
     public void setForeignIds(Map<String, List<String>> foreignIds) {
         this.foreignIds = foreignIds;
     }
 
+    @Override
     public int getCount() {
         try {
-            if (logger.isLoggable(Level.FINER))
+            if (logger.isLoggable(Level.FINER)) {
                 logger.finer("Getting size.");
-            JPAQuery queryClone = (JPAQuery) getQ().clone();
+            }
+            JPAQuery queryClone = (JPAQuery) this.getQ().clone();
             queryClone.setResult("count(*)");
-            QueryImpl query2 = new QueryImpl(em, queryClone);
-            query2.setParameters(getParameters());
-            query2.setForeignIds(getForeignIds());
+            QueryImpl query2 = new QueryImpl(this.em, queryClone);
+            query2.setParameters(this.getParameters());
+            query2.setForeignIds(this.getForeignIds());
             List results = query2.getResultList();
             int resultCount = ((Long) results.get(0)).intValue();
-            if (logger.isLoggable(Level.FINER))
+            if (logger.isLoggable(Level.FINER)) {
                 logger.finer("Got:" + resultCount);
+            }
 
-            if (maxResults >= 0 && resultCount > maxResults) {
-                if (logger.isLoggable(Level.FINER))
-                    logger.finer("Too much, adjusting to maxResults: " + maxResults);
-                return maxResults;
+            if (this.maxResults >= 0 && resultCount > this.maxResults) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.finer("Too much, adjusting to maxResults: " + this.maxResults);
+                }
+                return this.maxResults;
             } else {
                 return resultCount;
             }
@@ -408,7 +403,7 @@ public class QueryImpl extends AbstractQuery {
             if (i > 0) {
                 i++;
             }
-// System.out.println("sbbefore=" + sb);
+            // System.out.println("sbbefore=" + sb);
             // special null cases: is null and is not null
             String firstParam = whereTokens.get(i);
             i++;
@@ -420,8 +415,8 @@ public class QueryImpl extends AbstractQuery {
                 thirdParam += " " + whereTokens.get(i);
             }
             i++;
-            aok = appendCondition(tClass, sb, firstParam, secondParam, thirdParam);
-// System.out.println("sbafter=" + sb);
+            aok = this.appendCondition(tClass, sb, firstParam, secondParam, thirdParam);
+            // System.out.println("sbafter=" + sb);
             if (aok == null) {
                 return null; // todo: only return null if it's an AND query, or's should still continue, but skip the intersection part
             }
@@ -433,7 +428,7 @@ public class QueryImpl extends AbstractQuery {
 
     @Override
     public String toString() {
-        return "QueryImpl{" + "em=" + em + ", q=" + q + ", parameters=" + parameters + ", maxResults=" + maxResults + ", qString='" + qString + '\'' + '}';
+        return "QueryImpl{" + "em=" + this.em + ", q=" + this.q + ", parameters=" + this.parameters + ", maxResults=" + this.maxResults + ", qString='" + this.qString + '\'' + '}';
     }
 
 }
