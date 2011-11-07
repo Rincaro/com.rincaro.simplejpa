@@ -1,26 +1,5 @@
 package com.spaceprogram.simplejpa;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceException;
-import javax.persistence.spi.PersistenceUnitInfo;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
@@ -39,14 +18,29 @@ import com.spaceprogram.simplejpa.cache.CacheFactory;
 import com.spaceprogram.simplejpa.cache.NoopCache;
 import com.spaceprogram.simplejpa.cache.NoopCacheFactory;
 import com.spaceprogram.simplejpa.stats.OpStats;
-
 import org.apache.commons.collections.MapUtils;
 import org.scannotation.AnnotationDB;
 import org.scannotation.ClasspathUrlFinder;
 
+import javax.persistence.Entity;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceException;
+import javax.persistence.spi.PersistenceUnitInfo;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * User: treeder Date: Feb 10, 2008 Time: 6:20:23 PM
- * 
+ *
  * Additional Contributions - Eric Molitor eric@molitor.org - Eric Wei e.pwei84@gmail.com
  */
 public class EntityManagerFactoryImpl implements EntityManagerFactory {
@@ -115,6 +109,12 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     private static final String AWSACCESS_KEY_PROP_NAME = "accessKey";
     private static final String AWSSECRET_KEY_PROP_NAME = "secretKey";
+    private static final String PROXY_HOST_PROP_NAME = "proxyHost";
+    private static final String PROXY_PORT_PROP_NAME = "proxyPort";
+    private static final String PROXY_DOMAIN_PROP_NAME = "proxyDomain";
+    private static final String PROXY_PASSWORD_PROP_NAME = "proxyPassword";
+    private static final String PROXY_USERNAME_PROP_NAME = "proxyUsername";
+    private static final String PROXY_WORKSTATION_PROP_NAME = "proxyWorkstation";
 
     // Global stats across all EntityManager's
     private OpStats stats = new OpStats();
@@ -139,7 +139,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     /**
      * This one is generally called via the PersistenceProvider.
-     * 
+     *
      * @param persistenceUnitInfo only using persistenceUnitName for now
      * @param props
      */
@@ -149,7 +149,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     /**
      * Use this if you want to construct this directly.
-     * 
+     *
      * @param persistenceUnitName used to prefix the SimpleDB domains
      * @param props should have accessKey and secretKey
      */
@@ -159,7 +159,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     /**
      * Use this one in web applications, see: http://code.google.com/p/simplejpa/wiki/WebApplications
-     * 
+     *
      * @param persistenceUnitName
      * @param props
      * @param libsToScan a set of
@@ -221,6 +221,34 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
         config.setUserAgent(USER_AGENT);
         Protocol protocol = isSecure ? Protocol.HTTPS : Protocol.HTTP;
         config.setProtocol(protocol);
+        String proxyHost = (String) this.props.get(PROXY_HOST_PROP_NAME);
+        String proxyPort = (String) this.props.get(PROXY_PORT_PROP_NAME);
+        String proxyDomain = (String) this.props.get(PROXY_DOMAIN_PROP_NAME);
+        String proxyPassword = (String) this.props.get(PROXY_PASSWORD_PROP_NAME);
+        String proxyUsername = (String) this.props.get(PROXY_USERNAME_PROP_NAME);
+        String proxyWorkstation = (String) this.props.get(PROXY_WORKSTATION_PROP_NAME);
+        if (proxyHost != null) {
+            config.setProxyHost(proxyHost);
+        }
+        if (proxyPort != null) {
+            try {
+                config.setProxyPort(Integer.parseInt(proxyPort));
+            } catch (NumberFormatException ex) {
+                throw new RuntimeException("proxyPort is not integer", ex);
+            }
+        }
+        if (proxyDomain != null) {
+            config.setProxyDomain(proxyDomain);
+        }
+        if (proxyPassword != null) {
+            config.setProxyPassword(proxyPassword);
+        }
+        if (proxyUsername != null) {
+            config.setProxyUsername(proxyUsername);
+        }
+        if (proxyWorkstation != null) {
+            config.setProxyWorkstation(proxyWorkstation);
+        }
         return config;
     }
 
@@ -359,7 +387,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     /**
      * Call this to load the props from a file in the root of our classpath called: sdb.properties
-     * 
+     *
      * @throws IOException
      * @deprecated don't use this.
      */
@@ -525,7 +553,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
     /**
      * This will turn on sessionless mode which means that you do not need to keep EntityManager's open, nor do you need to close them. But you should ALWAYS use the second level
      * cache in this case.
-     * 
+     *
      * @param sessionless
      */
     public void setSessionless(boolean sessionless) {
@@ -543,7 +571,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
 
     /**
      * Turns off caches. Useful for testing. This will also shutdown and recreate any existing cache if cacheless is true.
-     * 
+     *
      * @param cacheless
      */
     public void setCacheless(boolean cacheless) {
