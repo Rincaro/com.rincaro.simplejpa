@@ -21,6 +21,8 @@ package com.spaceprogram.simplejpa.util;
  */
 
 import org.apache.commons.codec.binary.Base64;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.math.BigDecimal;
 import java.text.ParseException;
@@ -250,6 +252,25 @@ public class AmazonSimpleDBUtil {
         return dateFormatter.parse(javaValue);
     }
 
+    /**
+     * Encodes date value into string format that can be compared lexicographically
+     *
+     * @param date date value to be encoded
+     * @return string representation of the date value
+     */
+    public static String encodeDateTime(DateTime date) {
+        return date.toDateTime(DateTimeZone.UTC).toString();
+    }
+
+    /**
+     * Decodes date value from the string representation created using encodeDate(..) function.
+     *
+     * @param	value	string representation of the date value
+     * @return			original date value
+     */
+    public static DateTime decodeDateTime(String value) {
+        return new DateTime(value, DateTimeZone.UTC);
+    }
 
     /**
      * Encodes date value into a base64-encoded string.

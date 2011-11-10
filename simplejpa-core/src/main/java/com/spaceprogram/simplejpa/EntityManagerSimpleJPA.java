@@ -1,5 +1,26 @@
 package com.spaceprogram.simplejpa;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.simpledb.AmazonSimpleDB;
+import com.amazonaws.services.simpledb.model.*;
+import com.spaceprogram.simplejpa.AnnotationManager.ClassMethodEntry;
+import com.spaceprogram.simplejpa.cache.Cache;
+import com.spaceprogram.simplejpa.operations.Delete;
+import com.spaceprogram.simplejpa.operations.Find;
+import com.spaceprogram.simplejpa.operations.Save;
+import com.spaceprogram.simplejpa.query.QueryImpl;
+import com.spaceprogram.simplejpa.query.SimpleDBQuery;
+import com.spaceprogram.simplejpa.stats.OpStats;
+import com.spaceprogram.simplejpa.util.AmazonSimpleDBUtil;
+import com.spaceprogram.simplejpa.util.ConcurrentRetriever;
+import net.sf.cglib.proxy.Factory;
+import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
+
+import javax.persistence.*;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -15,36 +36,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.persistence.*;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.simpledb.AmazonSimpleDB;
-import com.amazonaws.services.simpledb.model.Attribute;
-import com.amazonaws.services.simpledb.model.DeleteAttributesRequest;
-import com.amazonaws.services.simpledb.model.GetAttributesRequest;
-import com.amazonaws.services.simpledb.model.GetAttributesResult;
-import com.amazonaws.services.simpledb.model.Item;
-import com.amazonaws.services.simpledb.model.PutAttributesRequest;
-import com.amazonaws.services.simpledb.model.ReplaceableAttribute;
-import com.amazonaws.services.simpledb.model.SelectResult;
-import com.spaceprogram.simplejpa.AnnotationManager.ClassMethodEntry;
-import com.spaceprogram.simplejpa.cache.Cache;
-import com.spaceprogram.simplejpa.operations.Delete;
-import com.spaceprogram.simplejpa.operations.Find;
-import com.spaceprogram.simplejpa.operations.Save;
-import com.spaceprogram.simplejpa.query.QueryImpl;
-import com.spaceprogram.simplejpa.query.SimpleDBQuery;
-import com.spaceprogram.simplejpa.stats.OpStats;
-import com.spaceprogram.simplejpa.util.AmazonSimpleDBUtil;
-import com.spaceprogram.simplejpa.util.ConcurrentRetriever;
-
-import net.sf.cglib.proxy.Factory;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * User: treeder Date: Feb 8, 2008 Time: 12:59:38 PM
@@ -129,6 +120,9 @@ public class EntityManagerSimpleJPA implements SimpleEntityManager, DatabaseMana
         } else if (ob instanceof Date) {
             Date d = (Date) ob;
             return AmazonSimpleDBUtil.encodeDate(d);
+        } else if (ob instanceof DateTime) {
+            DateTime d = (DateTime) ob;
+            return AmazonSimpleDBUtil.encodeDateTime(d);
         } else if (ob instanceof byte[]) {
             return AmazonSimpleDBUtil.encodeByteArray((byte[]) ob);
         }
@@ -422,8 +416,8 @@ public class EntityManagerSimpleJPA implements SimpleEntityManager, DatabaseMana
      * 
      * @param tClass
      * @param newInstance
-     * @param getter
-     * @param val
+     * @param property
+     * @param vals
      */
     public <T> void setFieldValue(Class tClass, T newInstance, PersistentProperty property, Collection<String> vals) {
         try {
@@ -719,6 +713,8 @@ public class EntityManagerSimpleJPA implements SimpleEntityManager, DatabaseMana
             newField = AmazonSimpleDBUtil.decodeByteArray(values.iterator().next());
         } else if (Date.class.isAssignableFrom(retType)) {
             newField = AmazonSimpleDBUtil.decodeDate(values.iterator().next());
+        } else if (DateTime.class.isAssignableFrom(retType)) {
+            newField = AmazonSimpleDBUtil.decodeDateTime(values.iterator().next());
         } else if (Collection.class.isAssignableFrom(retType)) { // convert all of the contents of the collection
             Collection coll = new ArrayList(); //TODO support other collection types
             for (String value : values) {
