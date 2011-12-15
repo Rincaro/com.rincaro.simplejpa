@@ -1,9 +1,6 @@
 package com.spaceprogram.simplejpa.query;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -53,7 +50,7 @@ public class QueryImpl extends AbstractQuery {
 
     private JPAQuery q;
 
-    public static String conditionRegex = "(<>)|(>=)|(<=)|=|>|<|\\band\\b|\\bor\\b|\\bis\\b|\\blike\\b";
+    public static String conditionRegex = "(<>)|(>=)|(<=)|=|>|<|\\band\\b|\\bor\\b|\\bis\\b|\\blike\\b|\\bin\\b";
     private String qString;
 
     // private AmazonQueryString amazonQuery;
@@ -160,6 +157,20 @@ public class QueryImpl extends AbstractQuery {
             // System.out.println("param=" + paramValue + "___");
             // param = param.startsWith("%") ? param.substring(1) : param;
             this.appendFilter(sb, columnName, comparator, paramValue);
+        } else if (comparator.equals("in")) {
+            comparator = "in";
+            // System.out.println("param=" + paramValue + "___");
+            // paramValue = paramValue.endsWith("%") ? paramValue.substring(0, paramValue.length() - 1) : paramValue;
+            // System.out.println("param=" + paramValue + "___");
+            // param = param.startsWith("%") ? param.substring(1) : param;
+            List<String> list = new ArrayList<String>();
+            Object value = getParameters().get(paramName(param));
+            if (value.getClass().isArray()) {
+                list.addAll(Arrays.asList((String[])value));
+            } else {
+                list.addAll((Collection<String>) value);
+            }
+            this.appendIn(sb, columnName, list);
         } else {
             // Handle the translation of NOT EQUALS
             if ("<>".equals(comparator)) {
