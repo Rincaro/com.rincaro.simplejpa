@@ -3,8 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.rincaro</groupId>
 	<artifactId>simplejpa</artifactId>
-	<version>1.7-SNAPSHOT</version>
-	<packaging>pom</packaging>
+	<version>TRUNK-SNAPSHOT</version>
 	<name>simplejpa</name>
 
 	<dependencyManagement>
