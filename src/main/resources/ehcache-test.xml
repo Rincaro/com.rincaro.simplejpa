@@ -225,7 +225,7 @@
             memoryStoreEvictionPolicy="LRU"
             />
 
-    <cache name="com.spaceprogram.simplejpa.MyTestObject"
+    <cache name="com.rincaro.simplejpa.MyTestObject"
            maxElementsInMemory="10000"
            maxElementsOnDisk="1000"
            eternal="false"
@@ -235,7 +235,7 @@
            timeToLiveSeconds="600"
             />
 
-     <cache name="com.spaceprogram.simplejpa.MyTestObject2"
+     <cache name="com.rincaro.simplejpa.MyTestObject2"
            maxElementsInMemory="5"
            maxElementsOnDisk="1000"
            eternal="false"
