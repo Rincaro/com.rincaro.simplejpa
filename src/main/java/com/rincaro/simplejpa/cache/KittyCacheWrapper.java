@@ -1,6 +1,5 @@
 package com.rincaro.simplejpa.cache;
 
-import com.appoxy.kittycache.KittyCache;
 
 /**
  * 
@@ -19,4 +18,8 @@ public class KittyCacheWrapper extends KittyCache implements Cache {
         return get(o);
     }
 
+    @Override
+    public void put(Object o, Object o1) {
+        put(o,o1, 10000);       
+    }
 }

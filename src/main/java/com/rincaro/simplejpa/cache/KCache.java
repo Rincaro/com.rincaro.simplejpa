@@ -80,23 +80,3 @@ public interface KCache<K, V> {
          */
         int size();
 }
-Hide details
-Change log
-r6 by innovativeravi on Dec 18, 2011   Diff
-Fixed issues 2,3 and 4.
-Introduced Generics for the interfaces.
-With related to issue 1, Mavenized the
-project, though unable to find any open
-source maven repositories. Once, realized,
-will be uploaded to the corresponding
-maven repository.
-Go to: 	
-Project members, sign in to write a code review
-Older revisions
- r4 by treeder on Aug 2, 2009   Diff 
- r3 by treeder on Mar 24, 2009   Diff 
-All revisions of this file
-File info
-Size: 2670 bytes, 82 lines
-View raw file
-

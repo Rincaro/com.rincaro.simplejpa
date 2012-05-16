@@ -9,7 +9,6 @@ import java.util.Map;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheException;
 import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.Statistics;
 import net.sf.ehcache.Status;
@@ -27,10 +26,8 @@ import net.sf.ehcache.transaction.manager.TransactionManagerLookup;
 import net.sf.ehcache.writer.CacheWriter;
 import net.sf.ehcache.writer.CacheWriterManager;
 
-/**
- * User: treeder Date: Aug 2, 2009 Time: 9:44:53 PM
- */
-public class EhcacheWrapper implements Ehcache, com.rincaro.simplejpa.cache.Cache {
+
+public class EhcacheWrapper implements com.rincaro.simplejpa.cache.Cache {
     private Cache cache;
 
     public EhcacheWrapper(Cache cache) {

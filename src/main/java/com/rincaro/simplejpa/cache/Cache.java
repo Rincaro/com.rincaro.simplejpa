@@ -1,13 +1,5 @@
 package com.rincaro.simplejpa.cache;
 
-import java.util.Map;
-import java.util.Collection;
-
-/**
- * User: treeder
- * Date: Aug 2, 2009
- * Time: 7:07:41 PM
- */
 public interface Cache {
     int size();
 
