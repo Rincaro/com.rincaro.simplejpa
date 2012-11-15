@@ -403,10 +403,6 @@ public class EhcacheWrapper implements com.rincaro.simplejpa.cache.Cache {
         cache.setDisabled(b);
     }
 
-    public void setDiskStorePath(String s) {
-        cache.setDiskStorePath(s);
-    }
-
     public void setMemoryStoreEvictionPolicy(Policy policy) {
         cache.setMemoryStoreEvictionPolicy(policy);
     }
